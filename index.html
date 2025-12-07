@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>卡通 ESG 城市 - 浏览器原型</title>
+  <style>
+    :root {
+      --bg: #f5f8ff;
+      --panel: #ffffff;
+      --accent: #4c7df0;
+      --text: #1f2933;
+      --muted: #6b7280;
+      --danger: #ef4444;
+      --success: #16a34a;
+      --grid-size: 60px;
+      font-family: "Inter", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      margin: 0;
+      padding: 16px;
+      color: var(--text);
+    }
+    h1 { margin: 0 0 8px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .panel {
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    }
+    .resources {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .resource {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: linear-gradient(120deg, rgba(76,125,240,0.08), rgba(22,163,74,0.06));
+    }
+    .resource .label { color: var(--muted); font-size: 12px; }
+    .resource .value { font-weight: 700; font-size: 20px; }
+    .buildings { display: grid; gap: 8px; }
+    .build-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      background: #f8fafc;
+    }
+    .build-card button {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      box-shadow: 0 4px 10px rgba(76,125,240,0.25);
+    }
+    .build-card button.active {
+      outline: 2px solid #1d4ed8;
+      box-shadow: 0 0 0 2px rgba(76,125,240,0.15);
+    }
+    .build-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      background: white;
+      border: 1px solid #e5e7eb;
+    }
+    .build-info { font-size: 13px; }
+    .build-info strong { display: block; margin-bottom: 2px; }
+    .map-wrapper {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+    }
+    .toolbar { display: flex; align-items: center; gap: 8px; }
+    .toolbar button {
+      border: 1px solid #d1d5db;
+      background: white;
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .toolbar button.active { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+    .toolbar select {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, var(--grid-size));
+      grid-template-rows: repeat(8, var(--grid-size));
+      gap: 4px;
+    }
+    .cell {
+      width: var(--grid-size);
+      height: var(--grid-size);
+      border-radius: 10px;
+      border: 1px dashed #e5e7eb;
+      background: white;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+    .cell:hover { transform: translateY(-2px); }
+    .tile {
+      position: absolute;
+      inset: 6px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .tile span { font-size: 11px; font-weight: 600; color: #0f172a; }
+    .tile.house { background: #fde68a; }
+    .tile.shop { background: #bfdbfe; }
+    .tile.factory { background: #fecdd3; }
+    .tile.wind { background: #c7f9cc; }
+    .tile.park { background: #bbf7d0; }
+    .tile.road { background: #e5e7eb; }
+    .status-line { color: var(--muted); font-size: 13px; margin-top: 4px; min-height: 18px; }
+    .heat { position: absolute; inset: 0; border-radius: 8px; mix-blend-mode: multiply; pointer-events: none; }
+    .heat.E { background: rgba(34,197,94,0.35); }
+    .heat.S { background: rgba(14,165,233,0.35); }
+    .heat.G { background: rgba(249,115,22,0.35); }
+    .legend { display: flex; gap: 10px; font-size: 12px; color: var(--muted); }
+    .legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .esg { display: flex; gap: 8px; align-items: center; }
+    progress { width: 100%; height: 10px; border-radius: 8px; overflow: hidden; }
+    progress::-webkit-progress-bar { background: #e5e7eb; }
+    progress.E::-webkit-progress-value { background: #22c55e; }
+    progress.S::-webkit-progress-value { background: #0ea5e9; }
+    progress.G::-webkit-progress-value { background: #f97316; }
+  </style>
+</head>
+<body>
+  <h1>卡通 ESG 城市（可玩原型）</h1>
+  <p class="status-line" id="message">点击建筑卡片再点击网格放置；切换“拆除”回收一半金币。</p>
+  <div class="layout">
+    <aside class="panel">
+      <div class="resources">
+        <div class="resource"><div class="label">金币</div><div class="value" id="gold">0</div></div>
+        <div class="resource"><div class="label">人口</div><div class="value" id="population">0</div></div>
+        <div class="resource esg">
+          <div style="min-width:40px">ESG</div>
+          <progress id="esgE" class="E" max="100" value="50"></progress>
+          <progress id="esgS" class="S" max="100" value="50"></progress>
+          <progress id="esgG" class="G" max="100" value="50"></progress>
+        </div>
+      </div>
+      <div class="buildings" id="buildingList"></div>
+    </aside>
+    <main class="map-wrapper">
+      <div class="panel toolbar">
+        <button id="modeBuild" class="active">建造</button>
+        <button id="modeBulldoze">拆除</button>
+        <select id="heatmap">
+          <option value="none">热力图：关闭</option>
+          <option value="E">E-环境</option>
+          <option value="S">S-社会</option>
+          <option value="G">G-治理</option>
+        </select>
+        <button id="save">存档</button>
+        <button id="load">读档</button>
+        <span class="legend"> <span class="dot" style="background:#22c55e"></span>环境 <span class="dot" style="background:#0ea5e9"></span>社会 <span class="dot" style="background:#f97316"></span>治理</span>
+      </div>
+      <div class="panel">
+        <div class="grid" id="grid"></div>
+        <div class="status-line" id="hint"></div>
+      </div>
+    </main>
+  </div>
+  <script>
+    const buildingTypes = {
+      house: { name: "住宅", icon: "🏠", cost: 40, income: 4, pop: 4, e: -1, s: 3, g: 0, color: "house" },
+      shop: { name: "商店", icon: "🏪", cost: 60, income: 7, pop: 0, e: -1, s: 2, g: 2, color: "shop" },
+      factory: { name: "工厂", icon: "🏭", cost: 80, income: 12, pop: 0, e: -4, s: -1, g: 3, color: "factory" },
+      wind: { name: "风机", icon: "💨", cost: 70, income: 3, pop: 0, e: 5, s: 0, g: 1, color: "wind" },
+      park: { name: "公园", icon: "🌳", cost: 30, income: 1, pop: 1, e: 3, s: 2, g: 0, color: "park" },
+      road: { name: "道路", icon: "🛣️", cost: 10, income: 0, pop: 0, e: 0, s: 1, g: 2, color: "road" },
+    };
+
+    const width = 12, height = 8;
+    const gridEl = document.getElementById('grid');
+    const buildingListEl = document.getElementById('buildingList');
+    const messageEl = document.getElementById('message');
+    const hintEl = document.getElementById('hint');
+    const goldEl = document.getElementById('gold');
+    const popEl = document.getElementById('population');
+    const esgEEl = document.getElementById('esgE');
+    const esgSEl = document.getElementById('esgS');
+    const esgGEl = document.getElementById('esgG');
+
+    let state = {
+      gold: 120,
+      population: 4,
+      esg: { E: 55, S: 55, G: 55 },
+      tiles: {}, // key "x,y" -> {type}
+      mode: 'build',
+      selected: null,
+      tick: 0,
+    };
+
+    function key(x, y) { return `${x},${y}`; }
+
+    function drawBuildings() {
+      buildingListEl.innerHTML = '';
+      Object.entries(buildingTypes).forEach(([id, b]) => {
+        const card = document.createElement('div');
+        card.className = 'build-card';
+        card.innerHTML = `
+          <div class="build-icon">${b.icon}</div>
+          <div class="build-info">
+            <strong>${b.name}</strong>
+            <div>成本 ${b.cost} ｜ +金币 ${b.income}/回合</div>
+            <div>人口 ${b.pop >= 0 ? '+' : ''}${b.pop} ｜ ESG: E ${b.e>=0?'+':''}${b.e} / S ${b.s>=0?'+':''}${b.s} / G ${b.g>=0?'+':''}${b.g}</div>
+          </div>
+          <button data-id="${id}">建造</button>
+        `;
+        const btn = card.querySelector('button');
+        btn.addEventListener('click', () => selectBuilding(id, btn));
+        buildingListEl.appendChild(card);
+      });
+    }
+
+    function selectBuilding(id, btn) {
+      state.selected = id;
+      document.querySelectorAll('.build-card button').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      state.mode = 'build';
+      document.getElementById('modeBuild').classList.add('active');
+      document.getElementById('modeBulldoze').classList.remove('active');
+      setMessage(`准备建造：${buildingTypes[id].name}`);
+    }
+
+    function setMessage(msg) { messageEl.textContent = msg; }
+    function setHint(msg) { hintEl.textContent = msg; }
+
+    function renderGrid() {
+      gridEl.innerHTML = '';
+      for (let y=0; y<height; y++) {
+        for (let x=0; x<width; x++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.x = x; cell.dataset.y = y;
+          const tile = state.tiles[key(x,y)];
+          if (tile) {
+            const el = document.createElement('div');
+            el.className = `tile ${buildingTypes[tile.type].color}`;
+            el.innerHTML = `<div>${buildingTypes[tile.type].icon}</div><span>${buildingTypes[tile.type].name}</span>`;
+            cell.appendChild(el);
+            if (currentHeat !== 'none') {
+              const heat = document.createElement('div');
+              heat.className = `heat ${currentHeat}`;
+              const v = buildingTypes[tile.type][currentHeat.toLowerCase()];
+              heat.style.opacity = Math.min(Math.abs(v)/5, 1)*0.7;
+              cell.appendChild(heat);
+            }
+          }
+          cell.addEventListener('click', onCellClick);
+          gridEl.appendChild(cell);
+        }
+      }
+    }
+
+    function canAfford(cost) { return state.gold >= cost; }
+
+    function placeBuilding(x, y, type) {
+      if (state.tiles[key(x,y)]) { setHint('这里已有建筑'); return; }
+      const b = buildingTypes[type];
+      if (!canAfford(b.cost)) { setHint('金币不足'); return; }
+      state.gold -= b.cost;
+      state.tiles[key(x,y)] = { type };
+      applyStats();
+      renderGrid();
+      updateHUD();
+      setHint(`${b.name} 已建造`);
+    }
+
+    function bulldoze(x, y) {
+      const tile = state.tiles[key(x,y)];
+      if (!tile) { setHint('此处空地'); return; }
+      const refund = Math.floor(buildingTypes[tile.type].cost * 0.5);
+      state.gold += refund;
+      delete state.tiles[key(x,y)];
+      applyStats();
+      renderGrid();
+      updateHUD();
+      setHint(`已拆除，返还 ${refund} 金币`);
+    }
+
+    function applyStats() {
+      let goldPerTick = 2;
+      let pop = 0;
+      let esg = {E:50, S:50, G:50};
+      Object.values(state.tiles).forEach(t => {
+        const b = buildingTypes[t.type];
+        goldPerTick += b.income;
+        pop += b.pop;
+        esg.E += b.e;
+        esg.S += b.s;
+        esg.G += b.g;
+      });
+      state.population = Math.max(0, pop + 4);
+      state.income = goldPerTick;
+      state.esg = {
+        E: Math.max(0, Math.min(100, esg.E)),
+        S: Math.max(0, Math.min(100, esg.S)),
+        G: Math.max(0, Math.min(100, esg.G)),
+      };
+    }
+
+    function updateHUD() {
+      goldEl.textContent = Math.floor(state.gold);
+      popEl.textContent = state.population;
+      esgEEl.value = state.esg.E;
+      esgSEl.value = state.esg.S;
+      esgGEl.value = state.esg.G;
+      setHint(`当前收入：+${state.income}/回合`);
+    }
+
+    function onCellClick(e) {
+      const x = Number(e.currentTarget.dataset.x);
+      const y = Number(e.currentTarget.dataset.y);
+      if (state.mode === 'bulldoze') return bulldoze(x,y);
+      if (!state.selected) { setHint('请选择建筑卡片'); return; }
+      placeBuilding(x,y,state.selected);
+    }
+
+    function tick() {
+      state.tick += 1;
+      state.gold += state.income;
+      updateHUD();
+      if (state.tick % 10 === 0) {
+        const events = [
+          { text: '节能周：风机效率提升', apply: () => { state.gold += 20; setMessage('节能周奖励 +20 金币'); } },
+          { text: '社区义诊：社会满意度提升', apply: () => { state.esg.S = Math.min(100, state.esg.S + 5); setMessage('社会 +5'); } },
+          { text: '交通拥堵：治理下降', apply: () => { state.esg.G = Math.max(0, state.esg.G - 5); setMessage('治理 -5'); } }
+        ];
+        const ev = events[Math.floor(Math.random() * events.length)];
+        ev.apply();
+        updateHUD();
+      }
+      autoSave();
+    }
+
+    let currentHeat = 'none';
+    document.getElementById('heatmap').addEventListener('change', (e) => {
+      currentHeat = e.target.value;
+      renderGrid();
+    });
+
+    document.getElementById('modeBuild').addEventListener('click', () => {
+      state.mode = 'build';
+      document.getElementById('modeBuild').classList.add('active');
+      document.getElementById('modeBulldoze').classList.remove('active');
+      setMessage('建造模式');
+    });
+    document.getElementById('modeBulldoze').addEventListener('click', () => {
+      state.mode = 'bulldoze';
+      document.getElementById('modeBulldoze').classList.add('active');
+      document.getElementById('modeBuild').classList.remove('active');
+      setMessage('拆除模式：返还 50% 成本');
+    });
+
+    document.getElementById('save').addEventListener('click', () => { autoSave(true); setMessage('已存档'); });
+    document.getElementById('load').addEventListener('click', () => { loadState(); setMessage('读档完成'); });
+
+    function autoSave(show) {
+      const data = JSON.stringify(state);
+      localStorage.setItem('esg-city-save', data);
+      if (show) setMessage('已保存到浏览器本地存储');
+    }
+
+    function loadState() {
+      const data = localStorage.getItem('esg-city-save');
+      if (!data) { setMessage('暂无存档'); return; }
+      const saved = JSON.parse(data);
+      state = { ...state, ...saved };
+      applyStats();
+      renderGrid();
+      updateHUD();
+    }
+
+    function init() {
+      drawBuildings();
+      renderGrid();
+      applyStats();
+      updateHUD();
+      selectBuilding('house');
+      loadState();
+      setInterval(tick, 2000);
+    }
+
+    init();
+  </script>
+</body>
+</html>
